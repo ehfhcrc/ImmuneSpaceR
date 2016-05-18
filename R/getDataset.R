@@ -39,11 +39,12 @@ filter_cached_copy <- function(filters, data){
     whether a cached version exist or not.\n
     colFilter: A character. A filter as returned by Rlabkey's makeFilter function.\n
     '...': Extra arguments to be passed to labkey.selectRows."
+    browser()
     if(nrow(available_datasets[Name%in%x])==0){
-      wstring <- paste0(study, " has invalid data set: ",x)
+      wstring <- paste0(paste(study, collapse = ", "), " has invalid data set: ",x)
       if(config$verbose){
         wstring <- paste0(wstring, "\n",
-                          "Valid datasets for ", study, ": ",
+                          "Valid datasets: ",
                           paste(available_datasets$Name, collapse = ", "), ".")
       }
       warning(wstring)
@@ -70,6 +71,10 @@ filter_cached_copy <- function(filters, data){
           cache <- FALSE
         } else{
           cache <- TRUE
+        }
+        if(length(study) > 1){
+          cf <- makeFilter(c("study_accession", "IN", paste(study, collapse = ";")))
+          colFilter <- rbind(colFilter, cf, deparse.level = 0)
         }
         data <- data.table(
           labkey.selectRows(baseUrl = config$labkey.url.base,

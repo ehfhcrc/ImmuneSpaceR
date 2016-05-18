@@ -12,6 +12,8 @@ if(ISR_login != ""  &  ISR_pwd != ""){
 }
 
 # Connections
+CreateConnection(c("SDY269", "SDY22269"))
+CreateConnection(c("SDY2269", "SDY22269"))
 sdy269 <- CreateConnection("SDY269", verbose = TRUE)
 sdy180 <- CreateConnection("SDY180", verbose = TRUE)
 #sdy28 <- CreateConnection("SDY28", verbose = TRUE)

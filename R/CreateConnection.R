@@ -69,16 +69,12 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
     curlOptions <- labkey.setCurlOptions(ssl.verifyhost = 2, sslversion = 1)
   }
   
-  if(length(study) <= 1){
-    .CreateConnection(study = study
-                      , labkey.url.base = labkey.url.base
-                      , labkey.user.email = labkey.user.email
-                      , verbose = verbose
-                      , curlOptions = curlOptions
-                      )
-  } else{
-    stop("For multiple studies, use an empty string and filter the connection.")
-  }
+  .CreateConnection(study = study
+                    , labkey.url.base = labkey.url.base
+                    , labkey.user.email = labkey.user.email
+                    , verbose = verbose
+                    , curlOptions = curlOptions
+                    )
 }
 
 
@@ -88,22 +84,29 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
                              , curlOptions
                              , verbose
                              , ...){
-  labkey.url.path<-try(get("labkey.url.path",.GlobalEnv),silent=TRUE)
-  if(inherits(labkey.url.path,"try-error")){
-    if(is.null(study)){
-      stop("study cannot be NULL")
+  # Handle labkey.url.path depending on study
+  if(is.null(study)){
+    labkey.url.path <- try(get("labkey.url.path", .GlobalEnv), silent = TRUE)
+    if(inherits(labkey.url.path, "try-error")){
+      stop("study cannot be null if 'labkey.url.path' is not defined")
     }
-    labkey.url.path <- paste0("/Studies/",study)
-  }else if(!is.null(study)){
-    labkey.url.path <- file.path(dirname(labkey.url.path),study)
+  } else if(length(study) > 1){
+    labkey.url.path <- "/Studies/"
+  } else if(study == ""){ # ALL studies
+    labkey.url.path <- "/Studies/"
+  } else if(length(study) == 1){
+    labkey.url.path <- paste0("/Studies/", study)
+  } else{ 
+    stop("Malformed study input.")
   }
+  
   config <- list(labkey.url.base = labkey.url.base,
                   labkey.url.path = labkey.url.path,
                   labkey.user.email = labkey.user.email,
                   curlOptions = curlOptions,
                   verbose = verbose)
   
-  .ISCon(config = config)
+  .ISCon(study = study, config = config)
 }
 
 #'@rdname ImmuneSpaceConnection-class
@@ -167,16 +170,16 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
 # Functions used in initialize need to be declared ahead of it
 #' @importFrom gtools mixedsort
 .ISCon$methods(
-  checkStudy=function(verbose = FALSE){
+  checkStudy=function(){
     validStudies <- mixedsort(grep("^SDY", basename(lsFolders(getSession(config$labkey.url.base, "Studies"))), value = TRUE))
-    req_study <- basename(config$labkey.url.path)
-    if(!req_study %in% c("", validStudies)){
-      if(!verbose){
-        stop(paste0(req_study, " is not a valid study"))
-      } else{
-        stop(paste0(req_study, " is not a valid study\nValid studies: ",
-                    paste(validStudies, collapse=", ")))
-      }
+    invalid <- which(!study %in% c("", validStudies))
+    if(length(invalid) == 1){
+      stopmessage <- paste0(study[invalid], " is not a valid study.")
+    } else if(length(invalid) > 1){
+      stopmessage <- paste0(paste(study[invalid], collapse = ", "), " are not valid studies.")
+    }
+    if(length(invalid) > 0){
+        stop(paste0(stopmessage, "\nValid studies: ", paste(validStudies, collapse=", ")))
     }
   }
 )
@@ -184,10 +187,20 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
 .ISCon$methods(
   getAvailableDataSets=function(){
     if(length(available_datasets)==0){
-      df <- labkey.selectRows(baseUrl = config$labkey.url.base
+      if(length(study) > 1){
+        cf <- makeFilter(c("study_accession", "IN", paste(study, collapse = ";")))
+        df <- labkey.selectRows(baseUrl = config$labkey.url.base
+                        , config$labkey.url.path
+                        , schemaName = "study"
+                        , queryName = "ISC_dataset_2_study",
+                        colFilter = cf)
+        df <- unique(df[, c("Name", "Label", "Category", "Id")])
+      } else{
+        df <- labkey.selectRows(baseUrl = config$labkey.url.base
                         , config$labkey.url.path
                         , schemaName = "study"
                         , queryName = "ISC_study_datasets")
+      }
       available_datasets <<- data.table(df)#[,list(Label,Name,Description,`Key Property Name`)]
     }
   }
@@ -198,6 +211,11 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
     if(!is.null(data_cache[[constants$matrices]])){
       data_cache[[constants$matrices]]
     }else{
+      if(length(study) > 1){
+        cf <- makeFilter(c("Folder/Name", "IN", paste(study, collapse = ";")))
+      } else{
+        cf <- NULL
+      }
       if(verbose){
         ge <- try(data.table(
           labkey.selectRows(baseUrl = config$labkey.url.base,
@@ -206,6 +224,7 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
                             queryName = "Runs",
                             colNameOpt = "fieldname",
                             showHidden = TRUE,
+                            colFilter = cf,
                             viewName = "expression_matrices")),
         silent = TRUE)
       } else {
@@ -217,6 +236,7 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
                               queryName = "Runs",
                               colNameOpt = "fieldname",
                               showHidden = TRUE,
+                              colFilter = cf,
                               viewName = "expression_matrices")),
           silent = TRUE)
         )
@@ -235,25 +255,24 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
 )
 
 .ISCon$methods(
-  initialize=function(..., config = NULL){
+  initialize=function(..., study = NULL, config = NULL){
     
     #invoke the default init routine in case it needs to be invoked 
     #(e.g. when using $new(object) to construct the new object based on the exiting object)
     callSuper(...)
     
-    constants <<- list(matrices="GE_matrices",matrix_inputs="GE_inputs")
+    constants <<- list(matrices = "GE_matrices", matrix_inputs = "GE_inputs")
     
     if(!is.null(config))
       config <<- config
+    if(!is.null(config))
+      study <<- study
 
-    study <<- basename(config$labkey.url.path)
-    if(config$verbose){
-      checkStudy(config$verbose)
-    }
+    if(config$verbose)
+      checkStudy()
     
     getAvailableDataSets()
 
     gematrices_success <- GeneExpressionMatrices(verbose = FALSE)
-    
   }
 )
