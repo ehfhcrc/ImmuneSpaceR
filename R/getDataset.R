@@ -39,7 +39,6 @@ filter_cached_copy <- function(filters, data){
     whether a cached version exist or not.\n
     colFilter: A character. A filter as returned by Rlabkey's makeFilter function.\n
     '...': Extra arguments to be passed to labkey.selectRows."
-    browser()
     if(nrow(available_datasets[Name%in%x])==0){
       wstring <- paste0(paste(study, collapse = ", "), " has invalid data set: ",x)
       if(config$verbose){

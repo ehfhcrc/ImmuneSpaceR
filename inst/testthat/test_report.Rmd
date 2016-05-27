@@ -1,0 +1,25 @@
+---
+title: "ImmuneSpace_report"
+author: "Renan Sauteraud"
+date: "May 20, 2016"
+output: html_document
+---
+
+# This is an automated report of the status of data on ImmuneSpace
+
+## <a id="contents"></a>Contents
+1. [Connections](#cons)
+2. [Gene expression files](#gefiles)
+
+## <a id="cons"></a>Connections
+```{r connections}
+library(ImmuneSpaceR)
+single <- CreateConnection("SDY61")
+multi <- CreateConnection(c("SDY269", "SDY61"))
+all <- CreateConnection("")
+```
+
+## <a id="gefiles"></a>Gene expression files
+```{r gefiles}
+miss <- single$.test_files(mc = TRUE)
+```

@@ -25,7 +25,7 @@ pcrCols     <- data.frame(name = c("value_reported", "entrez_gene_id"),
 gefCols     <- data.frame(name = c("file_info_name", "cohort"),
                           type = c("character", "character"))
 mbaaCols    <- data.frame(name = c("analyte_name", "concentration_value"))
-farCols     <- data.frame(name = c(#"population_cell_number", # declared as VARCHAR(500)
+farCols     <- data.frame(name = c(#"population_cell_number", # declared as VARCHAR(500), FLOAT in ImmPort
   "population_definition_reported"),
                           type = c(#"numeric",
                             "character"))

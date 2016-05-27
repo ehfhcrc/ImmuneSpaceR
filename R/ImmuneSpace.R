@@ -95,9 +95,10 @@
 )
 .ISCon$methods(
     show=function(){
-      cat(sprintf("Immunespace Connection to study %s\n",study))
-      cat(sprintf("URL: %s\n",file.path(gsub("/$","",config$labkey.url.base),gsub("^/","",config$labkey.url.path))))
-      cat(sprintf("User: %s\n",config$labkey.user.email))
+      cat(sprintf("Immunespace Connection to study %s\n", paste(study, collapse = ", ")))
+      cat(sprintf("URL: %s\n", file.path(gsub("/$","", config$labkey.url.base),
+                                         gsub("^/","", config$labkey.url.path))))
+      cat(sprintf("User: %s\n", config$labkey.user.email))
       cat("Available datasets\n")
       for(i in 1:nrow(available_datasets)){
         cat(sprintf("\t%s\n",available_datasets[i,Name]))
@@ -130,6 +131,7 @@
 # This function is used for administrative purposes to check that the flat files
 # are properly loaded and accessible to the users.
 #' @importFrom RCurl url.exists
+#' @importFrom parallel mclapply
 .ISCon$methods(
   .test_files=function(what = c("gene_expression_files", "fcs", "protocol"), mc = FALSE){
     ret <- list()
@@ -168,7 +170,7 @@
         message("Project level, all protocols will be checked.")
         # Get study list and check em all. Bonus points for returning named logical.
       } else{
-        folder <- basename(con$config$labkey.url.path)
+        folder <- basename(config$labkey.url.path)
         res <- url.exists(paste0(config$labkey.url.base, "/_webdav/Studies/",
                                  study, "/%40files/protocols/", folder,
                                  "_protocol.zip"),

@@ -263,10 +263,11 @@ CreateConnection = function(study = NULL, login = NULL, password = NULL, verbose
     
     constants <<- list(matrices = "GE_matrices", matrix_inputs = "GE_inputs")
     
-    if(!is.null(config))
-      config <<- config
-    if(!is.null(config))
+    if(!is.null(study))
       study <<- study
+    if(!is.null(config))
+      config$inner_filter <- makeFilter(c("study_accession", "IN", paste(study, collapse = ";")))
+      config <<- config
 
     if(config$verbose)
       checkStudy()
