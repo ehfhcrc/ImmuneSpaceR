@@ -126,19 +126,35 @@
   }
 )
 
-# This function is used for administrative purposes to check that the flat files
-# are properly loaded and accessible to the users.
+# This function is used for administrative purposes to check that the flat files' links
 # Returns a list with three dataframes with file link info and HTTP status code for each tested link.
+# Because IS requires authentication, you must set 'user' and 'pwd' variables prior to running the method
 #' @importFrom httr GET
 #' @importFrom parallel mclapply detectCores
 .ISCon$methods(
   .test_files=function(what = c("gene_expression_files", "fcs_sample_files", "protocol")){
     
+    if(!exists("user") || !exists("pwd")){
+      stop("You must set 'user' and 'pwd' variables prior to running test_files()")
+    }
+    
     #-----helper-functions--------
     link_test <- function(link){
-      #url.exists() threw errors due to HTTP request related param values not being present at times, therefore using GET
-      info <- GET(link)
-      status <- info$status_code
+      # url.exists() threw errors, therefore using GET.
+      # IS pages redirect on 404/403/401 errors and cause a 'soft 404' where text in the body says 404, but HTTP status is 200.
+      # In case of an exception, the GET() request returns a JSON-like object that can be parsed and has obj$status with real code.
+  
+      req_obj <- GET(link, authenticate(user,pwd))
+      req_txt <- content(req_obj, "text")
+      status <- tryCatch(
+        {
+          parsed_json <- fromJSON(req_txt)
+          return(parsed_json$status)
+        },
+        error=function(e){
+          return(200)
+        }
+      )
       return(status)
     }
     
@@ -182,8 +198,8 @@
               link_text <- "flow_cytometry"
             }
             
-            links <- paste0(labkey.url.base, "/_webdav/", "/Studies/", 
-                            df$study_accession, "/%40files/rawdata/", link_text,
+            links <- paste0(labkey.url.base, "/_webdav", "/Studies/", 
+                            df$study_accession, "/%40files/rawdata/", link_text,"/",
                             sapply(df$file_info_name, URLencode))
             
             ret[[i]] <- res_table_maker(links_to_test = links, info_table = df, numrow = nrow(df), filetype = i)
